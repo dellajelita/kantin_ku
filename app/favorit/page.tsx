@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { rupiah } from "../data/menu";
-import Link from "next/link";
+import { menu } from "../data/menu";
+import MenuCard from "../components/MenuCard";
 
 type MenuItem = {
   id: number;
@@ -14,78 +14,63 @@ type MenuItem = {
 };
 
 export default function FavoritPage() {
-  const [menuList, setMenuList] = useState<MenuItem[]>([]);
-  const [favIds, setFavIds] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [favoritList, setFavoritList] = useState<MenuItem[]>([]);
 
   useEffect(() => {
-    const savedFav = JSON.parse(localStorage.getItem("favorit") || "[]");
-    setFavIds(savedFav);
+    setMounted(true);
+    try {
+      const savedFav = JSON.parse(
+        localStorage.getItem("favorit") || "[]",
+      ) as number[];
+      setFavoritList(menu.filter((m) => savedFav.includes(m.id)));
+    } catch {
+      setFavoritList([]);
+    }
 
-    fetch("/api/menu")
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal memuat data menu.");
-        return res.json();
-      })
-      .then((data) => {
-        setMenuList(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+    const handleFavoritBerubah = () => {
+      try {
+        const savedFav = JSON.parse(
+          localStorage.getItem("favorit") || "[]",
+        ) as number[];
+        setFavoritList(menu.filter((m) => savedFav.includes(m.id)));
+      } catch {
+        setFavoritList([]);
+      }
+    };
+
+    window.addEventListener("favorit-berubah", handleFavoritBerubah);
+    return () => {
+      window.removeEventListener("favorit-berubah", handleFavoritBerubah);
+    };
   }, []);
 
-  const menuFavorit = menuList.filter((m) => favIds.includes(m.id));
-
-  if (loading) {
+  // Mencegah perbedaan render HTML server & client secara mutlak
+  if (!mounted) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center text-gray-500 font-medium">
-        Memuat...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto py-12 text-center text-red-500 font-medium">
-        {error}
+      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-0 space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Menu Favorit Kamu</h1>
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center shadow-sm">
+          <p className="text-gray-500 font-medium">Memuat menu favorit...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-0 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Menu Favorit Saya</h1>
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-0 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Menu Favorit Kamu</h1>
 
-      {menuFavorit.length === 0 ? (
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center space-y-4">
-          <p className="text-gray-500 font-medium">Belum ada menu favorit.</p>
-          <Link
-            href="/menu"
-            className="inline-block bg-emerald-600 text-white text-sm px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition"
-          >
-            Jelajahi Menu
-          </Link>
+      {favoritList.length === 0 ? (
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center shadow-sm">
+          <p className="text-gray-500 font-medium">
+            Belum ada menu favorit yang ditambahkan.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {menuFavorit.map((item) => (
-            <Link
-              key={item.id}
-              href={`/menu/${item.id}`}
-              className="bg-white p-5 rounded-2xl border border-gray-200 hover:border-emerald-500 transition space-y-2 block"
-            >
-              <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full">
-                {item.kategori}
-              </span>
-              <h3 className="font-bold text-gray-900 text-lg">{item.nama}</h3>
-              <p className="text-emerald-600 font-semibold">
-                {rupiah(item.harga)}
-              </p>
-            </Link>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {favoritList.map((item) => (
+            <MenuCard key={item.id} item={item} />
           ))}
         </div>
       )}

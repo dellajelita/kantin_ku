@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { rupiah } from "../data/menu";
 import Link from "next/link";
 
@@ -23,17 +23,28 @@ type Transaksi = {
 };
 
 export default function RiwayatPage() {
-  const [riwayat, setRiwayat] = useState<Transaksi[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [riwayat, setRiwayat] = useState<Transaksi[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const savedRiwayat = JSON.parse(
+        localStorage.getItem("riwayat") || "[]",
+      ) as Transaksi[];
+      return savedRiwayat.reverse();
+    } catch {
+      return [];
+    }
+  });
 
-  useEffect(() => {
-    setMounted(true);
-    const savedRiwayat = JSON.parse(localStorage.getItem("riwayat") || "[]");
-    // Urutkan dari yang terbaru di atas
-    setRiwayat(savedRiwayat.reverse());
-  }, []);
-
-  if (!mounted) return null;
+  const handleHapusSemuaRiwayat = () => {
+    if (
+      window.confirm(
+        "Apakah kamu yakin ingin menghapus seluruh riwayat pesanan?",
+      )
+    ) {
+      localStorage.removeItem("riwayat");
+      setRiwayat([]);
+    }
+  };
 
   const totalBelanjaSemua = riwayat.reduce(
     (acc, curr) => acc + curr.totalBayar,
@@ -42,27 +53,42 @@ export default function RiwayatPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-0 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Riwayat Pesanan</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Riwayat Pesanan</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Daftar transaksi pesanan kantin yang pernah kamu buat.
+          </p>
+        </div>
+
+        {riwayat.length > 0 && (
+          <button
+            type="button"
+            onClick={handleHapusSemuaRiwayat}
+            className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-4 py-2.5 rounded-xl transition border border-red-200"
+          >
+            🗑 Hapus Semua Riwayat
+          </button>
+        )}
+      </div>
 
       {riwayat.length === 0 ? (
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center space-y-4">
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center space-y-4 shadow-sm">
           <p className="text-gray-500 font-medium">Belum ada pesanan.</p>
           <Link
             href="/menu"
-            className="inline-block bg-emerald-600 text-white text-sm px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition"
+            className="inline-block bg-emerald-600 text-white text-sm px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition shadow-sm"
           >
             Pesan Menu Sekarang
           </Link>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Ringkasan Total */}
           <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-2 text-emerald-900 font-medium text-sm">
             <span>Total Pesanan: {riwayat.length} transaksi</span>
             <span>Akumulasi Belanja: {rupiah(totalBelanjaSemua)}</span>
           </div>
 
-          {/* List Riwayat */}
           <div className="space-y-4">
             {riwayat.map((trx, idx) => (
               <div

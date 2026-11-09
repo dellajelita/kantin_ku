@@ -1,25 +1,67 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, Suspense } from "react";
 import { menu, rupiah } from "@/app/data/menu";
-import Link from "next/link";
+import LinkComponent from "next/link";
 import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default function DetailMenuPage({ params }: PageProps) {
+type MenuItem = {
+  id: number;
+  nama: string;
+  kategori: string;
+  harga: number;
+  stok: number;
+  deskripsi?: string;
+};
+
+function DetailMenuContent({ params }: PageProps) {
   const resolvedParams = use(params);
-  const item = menu.find((m) => m.id === Number(resolvedParams.id));
+  const item = menu.find((m) => m.id === Number(resolvedParams.id)) as
+    | MenuItem
+    | undefined;
 
   const [jumlah, setJumlah] = useState(1);
   const [pesan, setPesan] = useState("");
   const [pesanError, setPesanError] = useState("");
 
+  const [isFavorit, setIsFavorit] = useState(() => {
+    if (typeof window === "undefined" || !item) return false;
+    try {
+      const savedFav = JSON.parse(
+        localStorage.getItem("favorit") || "[]",
+      ) as number[];
+      return savedFav.includes(item.id);
+    } catch {
+      return false;
+    }
+  });
+
   if (!item) {
     notFound();
   }
+
+  const toggleFavorit = () => {
+    try {
+      let savedFav = JSON.parse(
+        localStorage.getItem("favorit") || "[]",
+      ) as number[];
+      if (isFavorit) {
+        savedFav = savedFav.filter((favId: number) => favId !== item.id);
+        setIsFavorit(false);
+      } else {
+        savedFav.push(item.id);
+        setIsFavorit(true);
+      }
+      localStorage.setItem("favorit", JSON.stringify(savedFav));
+      window.dispatchEvent(new Event("favorit-berubah"));
+    } catch {
+      // ignore
+    }
+  };
 
   const handleTambahJumlah = () => {
     if (jumlah >= item.stok) {
@@ -45,40 +87,51 @@ export default function DetailMenuPage({ params }: PageProps) {
       return;
     }
 
-    const savedCart = JSON.parse(localStorage.getItem("keranjang") || "[]");
-    const existingIndex = savedCart.findIndex(
-      (c: { id: number }) => Number(c.id) === item.id,
-    );
+    try {
+      const savedCart = JSON.parse(
+        localStorage.getItem("keranjang") || "[]",
+      ) as Array<{
+        id: number;
+        jumlah: number;
+      }>;
+      const existingIndex = savedCart.findIndex(
+        (c) => Number(c.id) === item.id,
+      );
 
-    if (existingIndex > -1) {
-      const totalBaru = savedCart[existingIndex].jumlah + jumlah;
-      if (totalBaru > item.stok) {
-        setPesanError(
-          `Total di keranjang melebihi stok maksimal (${item.stok}).`,
-        );
-        return;
+      if (existingIndex > -1) {
+        const totalBaru = savedCart[existingIndex].jumlah + jumlah;
+        if (totalBaru > item.stok) {
+          setPesanError(
+            `Total di keranjang melebihi stok maksimal (${item.stok}).`,
+          );
+          return;
+        }
+        savedCart[existingIndex].jumlah = totalBaru;
+      } else {
+        savedCart.push({ id: item.id, jumlah });
       }
-      savedCart[existingIndex].jumlah = totalBaru;
-    } else {
-      savedCart.push({ id: item.id, jumlah });
+
+      localStorage.setItem("keranjang", JSON.stringify(savedCart));
+      window.dispatchEvent(new Event("keranjang-berubah"));
+
+      setPesanError("");
+      setPesan(
+        `${jumlah} porsi ${item.nama} berhasil ditambahkan ke keranjang!`,
+      );
+      setTimeout(() => setPesan(""), 3000);
+    } catch {
+      // ignore
     }
-
-    localStorage.setItem("keranjang", JSON.stringify(savedCart));
-    window.dispatchEvent(new Event("keranjang-berubah"));
-
-    setPesanError("");
-    setPesan(`${jumlah} porsi ${item.nama} berhasil ditambahkan ke keranjang!`);
-    setTimeout(() => setPesan(""), 3000);
   };
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 sm:px-0 space-y-6">
-      <Link
+      <LinkComponent
         href="/menu"
         className="text-sm text-emerald-600 font-medium hover:underline inline-block"
       >
         &larr; Kembali ke Menu
-      </Link>
+      </LinkComponent>
 
       <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6">
         <div className="space-y-3 border-b border-gray-100 pb-6">
@@ -90,9 +143,8 @@ export default function DetailMenuPage({ params }: PageProps) {
             {rupiah(item.harga)}
           </p>
 
-          {/* Deskripsi Menu */}
           <p className="text-sm text-gray-600 leading-relaxed pt-1">
-            {(item as any).deskripsi ||
+            {item.deskripsi ||
               "Menu lezat dan higienis yang disajikan langsung dari kantin sekolah."}
           </p>
 
@@ -111,7 +163,6 @@ export default function DetailMenuPage({ params }: PageProps) {
                 Atur Jumlah Pesanan:
               </span>
 
-              {/* Tombol Kontrol Jumlah yang Rapi */}
               <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-gray-50 shadow-inner w-fit">
                 <button
                   type="button"
@@ -133,36 +184,75 @@ export default function DetailMenuPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* Pesan Error Stok */}
             {pesanError && (
               <p className="text-xs text-red-500 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">
                 {pesanError}
               </p>
             )}
 
-            {/* Notifikasi Berhasil */}
             {pesan && (
               <p className="text-xs text-emerald-600 font-medium bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
                 {pesan}
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={handleTambahKeKeranjang}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm text-sm"
-            >
-              + Tambah ke Keranjang
-            </button>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleTambahKeKeranjang}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm text-sm"
+              >
+                + Tambah ke Keranjang
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleFavorit}
+                className={`w-full py-3.5 rounded-xl font-bold text-sm transition border ${
+                  isFavorit
+                    ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {isFavorit ? "♥ Favorit" : "♡ Tambah favorit"}
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-            <p className="text-sm font-medium text-red-600 text-center">
-              Maaf, stok menu ini sedang habis.
-            </p>
+          <div className="space-y-4 border-t pt-4">
+            <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+              <p className="text-sm font-medium text-red-600 text-center">
+                Maaf, stok menu ini sedang habis.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleFavorit}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition border ${
+                isFavorit
+                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {isFavorit ? "♥ Favorit" : "♡ Tambah favorit"}
+            </button>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+export default function DetailMenuPage({ params }: PageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-2xl mx-auto py-12 text-center text-gray-500 font-medium">
+          Memuat detail menu...
+        </div>
+      }
+    >
+      <DetailMenuContent params={params} />
+    </Suspense>
   );
 }

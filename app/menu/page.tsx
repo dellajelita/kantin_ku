@@ -9,21 +9,21 @@ export default function MenuPage() {
   const [kategori, setKategori] = useState("Semua");
   const [urutan, setUrutan] = useState("awal");
 
-  // 1. Filter berdasarkan Pencarian & Kategori
-  let filteredMenu = menu.filter((item) => {
-    const matchSearch = item.nama.toLowerCase().includes(search.toLowerCase());
-    const matchKategori = kategori === "Semua" || item.kategori === kategori;
-    return matchSearch && matchKategori;
-  });
-
-  // 2. Sort berdasarkan opsi Urutan
-  if (urutan === "murah") {
-    filteredMenu.sort((a, b) => a.harga - b.harga);
-  } else if (urutan === "mahal") {
-    filteredMenu.sort((a, b) => b.harga - a.harga);
-  } else if (urutan === "az") {
-    filteredMenu.sort((a, b) => a.nama.localeCompare(b.nama));
-  }
+  // 1. Filter & Sort menggunakan const (membuat salinan array dengan [...menu])
+  const filteredMenu = menu
+    .filter((item) => {
+      const matchSearch = item.nama
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const matchKategori = kategori === "Semua" || item.kategori === kategori;
+      return matchSearch && matchKategori;
+    })
+    .sort((a, b) => {
+      if (urutan === "murah") return a.harga - b.harga;
+      if (urutan === "mahal") return b.harga - a.harga;
+      if (urutan === "az") return a.nama.localeCompare(b.nama);
+      return 0; // "awal"
+    });
 
   const listKategori = ["Semua", "Makanan", "Minuman", "Camilan"];
 
@@ -49,11 +49,12 @@ export default function MenuPage() {
           className="w-full md:w-1/3 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-gray-800"
         />
 
-        {/* Filter Kategori (Sudah menggunakan tema Emerald) */}
+        {/* Filter Kategori */}
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {listKategori.map((kat) => (
             <button
               key={kat}
+              type="button"
               onClick={() => setKategori(kat)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition ${
                 kategori === kat

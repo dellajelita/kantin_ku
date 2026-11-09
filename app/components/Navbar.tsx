@@ -6,10 +6,11 @@ import { useState, useEffect } from "react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [totalItem, setTotalItem] = useState(0);
 
-  // Fungsi menghitung total item dari localStorage
-  const hitung = () => {
+  useEffect(() => {
+    setMounted(true);
     try {
       const cart = JSON.parse(localStorage.getItem("keranjang") || "[]");
       const total = cart.reduce(
@@ -20,16 +21,23 @@ export default function Navbar() {
     } catch {
       setTotalItem(0);
     }
-  };
 
-  useEffect(() => {
-    hitung(); // Hitung saat komponen pertama kali dimuat
+    const handleKeranjangBerubah = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem("keranjang") || "[]");
+        const total = cart.reduce(
+          (acc: number, item: { jumlah: number }) => acc + item.jumlah,
+          0,
+        );
+        setTotalItem(total);
+      } catch {
+        setTotalItem(0);
+      }
+    };
 
-    // Mendengarkan kabar/event saat keranjang berubah
-    window.addEventListener("keranjang-berubah", hitung);
-
+    window.addEventListener("keranjang-berubah", handleKeranjangBerubah);
     return () => {
-      window.removeEventListener("keranjang-berubah", hitung);
+      window.removeEventListener("keranjang-berubah", handleKeranjangBerubah);
     };
   }, []);
 
@@ -38,7 +46,7 @@ export default function Navbar() {
     { name: "Menu", href: "/menu" },
     { name: "Favorit", href: "/favorit" },
     {
-      name: `Keranjang${totalItem > 0 ? ` (${totalItem})` : ""}`,
+      name: `Keranjang${mounted && totalItem > 0 ? ` (${totalItem})` : ""}`,
       href: "/keranjang",
     },
     { name: "Riwayat", href: "/riwayat" },
