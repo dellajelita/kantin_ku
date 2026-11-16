@@ -8,7 +8,7 @@ export default function Home() {
       </h1>
       <p className="text-lg text-gray-600 mb-8">
         Pesan makanan dan minuman favoritmu di kantin sekolah dengan cepat,
-        mudah, tanpa harus mengantre lama.
+        mudah, tanpa harus mengantre terlalu lama.
       </p>
       <Link
         href="/menu"
